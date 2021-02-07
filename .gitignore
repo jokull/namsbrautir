@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# VSCode
+.vscode
+
+# Poetry
+poetry.lock
+
+# Project
+.dumps
+.db
+
