@@ -14,3 +14,5 @@ poetry run python load.py
 # To start Datasette
 poetry run datasette .db
 ```
+
+[Explore the out data here](https://namsbrautir.vercel.app)
