@@ -15,4 +15,4 @@ poetry run python load.py
 poetry run datasette .db
 ```
 
-[Explore the out data here](https://namsbrautir.vercel.app)
+[Explore the output data here](https://namsbrautir.vercel.app)
