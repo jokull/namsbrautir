@@ -3,10 +3,12 @@ from typing import ContextManager
 from pathlib import Path
 from contextlib import contextmanager
 
+
+from sqlalchemy.pool import SingletonThreadPool
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-engine = create_engine('sqlite:///./.db', pool_threadlocal=True)
+engine = create_engine("sqlite:///./.db", poolclass=SingletonThreadPool)
 _Session = sessionmaker(bind=engine, autoflush=True)
 
 
@@ -37,14 +39,21 @@ def get_or_create_school(db, id):
 
 
 def get_or_create_exam(db, items):
-    exam = db.query(Exam).get(items['_id'])
+    exam = db.query(Exam).get(items["_id"])
     if exam is None:
-        exam = Exam(id=items['_id'], **{
-            k: v for k, v in items.items() if k in ("title",
-                "level",
-                "maximum_credits",
-                "minimum_credits",
-                "number",)
+        exam = Exam(
+            id=items["_id"],
+            **{
+                k: v
+                for k, v in items.items()
+                if k
+                in (
+                    "title",
+                    "level",
+                    "maximum_credits",
+                    "minimum_credits",
+                    "number",
+                )
             }
         )
         db.add(exam)
@@ -53,58 +62,64 @@ def get_or_create_exam(db, items):
 
 
 def main(db: Session):
-    for filename in Path('.dumps').iterdir():
+    for filename in Path(".dumps").iterdir():
         data = json.loads(filename.read_text())
-        programme = db.query(Programme).get(data['_id'])
+        programme = db.query(Programme).get(data["_id"])
         if programme is None:
-            items = {k: v for k, v in data.items() if k in (
-                'credits', 'title')}
-            serial = data['ministry_serial']
-            year_code, approval_code, ability_code, finish_code = serial.split('-')
+            items = {k: v for k, v in data.items() if k in ("credits", "title")}
+            serial = data["ministry_serial"]
+            year_code, approval_code, ability_code, finish_code = serial.split("-")
             programme = Programme(
-                id=data['_id'],
+                id=data["_id"],
                 serial=serial,
                 year_code=year_code,
                 approval_code=approval_code,
                 ability_code=ability_code,
                 finish_code=finish_code,
                 courses=[],
-                status=data['programme_type']['status'],
-
+                status=data["programme_type"]["status"],
                 **items
             )
 
-        programme.exam = get_or_create_exam(db, data['programme_type']['exam'])
+        programme.exam = get_or_create_exam(db, data["programme_type"]["exam"])
 
-        schools = [get_or_create_school(db, id) for id in data['schools']]
+        schools = [get_or_create_school(db, id) for id in data["schools"]]
         for school in schools:
             programme.school = school
 
-        for items in data['core']:
-            category = items.get('title')
-            for data in items['courses']:
-                course = db.query(Course).get(data['_id'])
+        for items in data["core"]:
+            category = items.get("title")
+            for data in items["courses"]:
+                course = db.query(Course).get(data["_id"])
                 if course is None:
                     course = Course(
-                        id=data['_id'],
-                        topics=data['topics'],
-                        abbreviation=data['abbreviation'],
-                        subject=data['subject'],
-                        title=data['title'],
-                        status=data['status'],
-                        credits=data['credits'],
-                        level=data['level'],
+                        id=data["_id"],
+                        topics=data["topics"],
+                        abbreviation=data["abbreviation"],
+                        subject=data["subject"],
+                        title=data["title"],
+                        status=data["status"],
+                        credits=data["credits"],
+                        level=data["level"],
                         schools=[],
                     )
 
-                schools = [get_or_create_school(db, id) for id in data['schools']]
+                schools = [get_or_create_school(db, id) for id in data["schools"]]
                 for school in schools:
                     if school not in course.schools:
                         course.schools.append(school)
 
                 if course not in programme.courses:
-                    ins = programme_courses.insert().values(programme_id=programme.id, course_id=course.id, category=category)
-                    db.get_bind().execute(ins)
+                    programme_course = db.query(programme_courses).filter_by(
+                        programme_id=programme.id, course_id=course.id
+                    )
+                    if not programme_course:
+                        ins = programme_courses.insert().values(
+                            programme_id=programme.id,
+                            course_id=course.id,
+                            category=category,
+                        )
+                        db.get_bind().execute(ins)
 
                 db.add(course)
 
